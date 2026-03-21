@@ -1,0 +1,19 @@
+{
+  "_updated": "2026-03-22T00:01:07.974315",
+  "macro": {
+    "regime": "BEAR / RISK-OFF",
+    "gate": false,
+    "spy": null,
+    "sma200": null,
+    "vix": null,
+    "hy_spread": null,
+    "fed": null,
+    "yc": null
+  },
+  "fear_greed": {},
+  "reddit_signals": {},
+  "insider_clusters": {},
+  "large_contracts": {},
+  "urgent_8k": [],
+  "earnings_soon": {}
+}

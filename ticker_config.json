@@ -1,0 +1,35 @@
+{
+  "_instructions": "Edit this file to control what appears on the Larsen Ventures ticker display. Add or remove entries in the 'tickers' array. Each entry needs a 'symbol' and optional 'label'. ASX stocks use .AX suffix (e.g. CBA.AX). US stocks use plain symbol (e.g. NVDA). Changes appear on the dashboard within 60 seconds.",
+  "_last_edited_by": "Chappie",
+  "_last_edited_at": "2026-03-21",
+
+  "display_name": "Larsen Ventures",
+
+  "tickers": [
+    { "symbol": "CBA.AX",  "label": "CommBank",      "group": "ASX Banks" },
+    { "symbol": "BHP.AX",  "label": "BHP",            "group": "ASX Mining" },
+    { "symbol": "CSL.AX",  "label": "CSL",            "group": "ASX Healthcare" },
+    { "symbol": "NAB.AX",  "label": "NAB",            "group": "ASX Banks" },
+    { "symbol": "WBC.AX",  "label": "Westpac",        "group": "ASX Banks" },
+    { "symbol": "ANZ.AX",  "label": "ANZ",            "group": "ASX Banks" },
+    { "symbol": "MQG.AX",  "label": "Macquarie",      "group": "ASX Finance" },
+    { "symbol": "WES.AX",  "label": "Wesfarmers",     "group": "ASX Retail" },
+    { "symbol": "GMG.AX",  "label": "Goodman Group",  "group": "ASX Property" },
+    { "symbol": "WDS.AX",  "label": "Woodside",       "group": "ASX Energy" },
+    { "symbol": "RIO.AX",  "label": "Rio Tinto",      "group": "ASX Mining" },
+    { "symbol": "FMG.AX",  "label": "Fortescue",      "group": "ASX Mining" },
+    { "symbol": "WOW.AX",  "label": "Woolworths",     "group": "ASX Retail" },
+    { "symbol": "TLS.AX",  "label": "Telstra",        "group": "ASX Telco" },
+    { "symbol": "TCL.AX",  "label": "Transurban",     "group": "ASX Infrastructure" },
+    { "symbol": "COH.AX",  "label": "Cochlear",       "group": "ASX Healthcare" },
+    { "symbol": "RMD.AX",  "label": "ResMed",         "group": "ASX Healthcare" },
+    { "symbol": "XRO.AX",  "label": "Xero",           "group": "ASX Tech" },
+    { "symbol": "REA.AX",  "label": "REA Group",      "group": "ASX Tech" },
+    { "symbol": "ALL.AX",  "label": "Aristocrat",     "group": "ASX Gaming" },
+    { "symbol": "STO.AX",  "label": "Santos",         "group": "ASX Energy" },
+    { "symbol": "QBE.AX",  "label": "QBE Insurance",  "group": "ASX Finance" },
+    { "symbol": "JHX.AX",  "label": "James Hardie",   "group": "ASX Materials" },
+    { "symbol": "ASX.AX",  "label": "ASX Ltd",        "group": "ASX Finance" },
+    { "symbol": "SUN.AX",  "label": "Suncorp",        "group": "ASX Finance" }
+  ]
+}
