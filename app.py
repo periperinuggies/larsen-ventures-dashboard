@@ -31,6 +31,8 @@ KB           = BASE / "knowledge_base"
 TRADER       = BASE / "TradingAgents"
 ENV          = TRADER / ".env"
 DROPBOX_CFG  = Path.home() / "Dropbox" / "Chappie Share" / "ticker_config.json"
+BETFAIR_DIR  = BASE / "betfair"
+BETFAIR_LEDGER = BETFAIR_DIR / "paper_ledger.json"
 
 def load_env():
     env = {}
@@ -212,7 +214,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2 = st.tabs(["🤖  Trading Intelligence", "📺  Ticker Display"])
+tab1, tab2, tab3 = st.tabs(["🤖  Trading Intelligence", "🎯  Prediction Markets", "📺  Ticker Display"])
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TAB 1 — TRADING INTELLIGENCE
@@ -549,9 +551,281 @@ with tab1:
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TAB 2 — TICKER DISPLAY  (office wall view)
+# TAB 2 — PREDICTION MARKETS (Betfair Engine)
 # ════════════════════════════════════════════════════════════════════════════════
 with tab2:
+    col_t2, col_ts2 = st.columns([5, 2])
+    with col_t2:
+        st.markdown("# Larsen Ventures — Prediction Markets")
+    with col_ts2:
+        st.markdown(f"<p style='color:#666;font-size:12px;margin-top:22px'>Betfair Exchange · Paper Mode · {datetime.now().strftime('%d %b %Y %H:%M')}</p>", unsafe_allow_html=True)
+
+    # ── Load ledger ───────────────────────────────────────────────────────────
+    def load_betfair_ledger():
+        if BETFAIR_LEDGER.exists():
+            try:
+                with open(BETFAIR_LEDGER) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return None
+
+    ledger = load_betfair_ledger()
+
+    if ledger is None:
+        st.info("Prediction engine is live but no bets placed yet. The scanner will find opportunities and record them here automatically.")
+        ledger = {
+            "bankroll_gbp": 250.0,
+            "bankroll_aud": 500.0,
+            "bets": [],
+            "stats": {"total_bets": 0, "wins": 0, "losses": 0,
+                      "total_staked": 0, "total_profit": 0, "roi_pct": 0},
+            "started": datetime.now().isoformat(),
+        }
+
+    bets        = ledger.get("bets", [])
+    stats       = ledger.get("stats", {})
+    open_bets   = [b for b in bets if b.get("status") == "OPEN"]
+    settled     = [b for b in bets if b.get("status") == "SETTLED"]
+    wins        = [b for b in settled if b.get("result") == "WIN"]
+    bankroll    = ledger.get("bankroll_gbp", 250.0)
+    start_br    = 250.0  # £250 starting (£500 AUD @ 0.50)
+    total_pnl   = bankroll - start_br
+    roi_pct     = (total_pnl / stats.get("total_staked", 1)) * 100 if stats.get("total_staked", 0) > 0 else 0
+    win_rate    = (len(wins) / len(settled) * 100) if settled else 0
+    avg_edge    = (sum(b.get("edge", 0) for b in bets) / len(bets) * 100) if bets else 0
+    avg_odds    = (sum(b.get("back_price", 0) for b in bets) / len(bets)) if bets else 0
+
+    st.markdown("---")
+
+    # ── ROW 1: P&L Summary ───────────────────────────────────────────────────
+    st.markdown("## Bankroll & P&L")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    b1.metric("Bankroll",      f"£{bankroll:,.2f}",
+              delta=f"£{total_pnl:+.2f}" if bets else None)
+    b2.metric("Starting",      f"£{start_br:,.2f}")
+    b3.metric("Total P&L",     f"£{total_pnl:+.2f}",
+              delta_color="normal" if total_pnl >= 0 else "inverse")
+    b4.metric("ROI",           f"{roi_pct:.1f}%" if bets else "—")
+    b5.metric("Paper Mode",    "✅ Active")
+
+    if bets:
+        br_pct = bankroll / start_br
+        label  = f"£{bankroll:.2f} / £{start_br:.2f}"
+        clr    = "normal" if br_pct >= 1 else "inverse"
+        st.progress(min(br_pct, 1.5) / 1.5,
+                    text=f"Bankroll: {label}  ({br_pct*100:.1f}% of starting)")
+
+    st.markdown("---")
+
+    # ── ROW 2: Performance Stats ──────────────────────────────────────────────
+    st.markdown("## Performance")
+    p1, p2, p3, p4, p5, p6 = st.columns(6)
+    p1.metric("Total Bets",  str(stats.get("total_bets", 0)))
+    p2.metric("Open",        str(len(open_bets)))
+    p3.metric("Settled",     str(len(settled)))
+    p4.metric("Win Rate",    f"{win_rate:.0f}%" if settled else "—")
+    p5.metric("Avg Edge",    f"{avg_edge:.1f}%" if bets else "—")
+    p6.metric("Avg Odds",    f"{avg_odds:.2f}" if bets else "—")
+
+    # Go/no-go progress bar
+    if settled:
+        st.markdown("**Go / No-Go Criteria** (4-week paper trial — minimum thresholds)")
+        g1, g2, g3 = st.columns(3)
+        with g1:
+            roi_ok = roi_pct > 0
+            st.markdown(f"{'✅' if roi_ok else '🔴'} **Positive ROI after 5% commission**  \n`{roi_pct:.1f}%` (target: > 0%)")
+        with g2:
+            wr_ok = win_rate >= 52
+            st.markdown(f"{'✅' if wr_ok else '🔴'} **Win Rate**  \n`{win_rate:.1f}%` (target: ≥ 52%)")
+        with g3:
+            min_bets = len(settled) >= 20
+            st.markdown(f"{'✅' if min_bets else '⏳'} **Sample Size**  \n`{len(settled)} settled` (target: ≥ 20 for significance)")
+
+    st.markdown("---")
+
+    # ── ROW 3: Open Bets ─────────────────────────────────────────────────────
+    st.markdown(f"## Open Bets  `{len(open_bets)}`")
+    if open_bets:
+        import pandas as pd
+        rows = []
+        for b in open_bets:
+            agent_p  = b.get("agent_prob", 0) or 0
+            mkt_p    = b.get("market_prob", 0) or 0
+            edge_pct = b.get("edge", 0) * 100
+            edge_str = f"+{edge_pct:.1f}%" if edge_pct > 0 else f"{edge_pct:.1f}%"
+            rows.append({
+                "Event":      b.get("event", ""),
+                "Market":     b.get("market", ""),
+                "Selection":  b.get("selection", ""),
+                "Odds":       f"{b.get('back_price', 0):.2f}",
+                "Stake":      f"£{b.get('stake_gbp', 0):.2f}",
+                "To Win":     f"£{b.get('potential_profit', 0):.2f}",
+                "Our Prob":   f"{agent_p*100:.0f}%",
+                "Mkt Prob":   f"{mkt_p*100:.0f}%",
+                "Edge":       edge_str,
+                "Type":       b.get("event_type", ""),
+            })
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        # Show reasoning for each open bet
+        st.markdown("**Signal Reasoning**")
+        for b in open_bets:
+            reasoning = b.get("reasoning", "No reasoning captured")
+            edge_pct  = (b.get("edge", 0) or 0) * 100
+            pill_cls  = "pill-bull" if edge_pct >= 5 else "pill-neut"
+            with st.expander(f"{b.get('event','')} — {b.get('selection','')} @ {b.get('back_price','')} | edge {edge_pct:.1f}%"):
+                col_r1, col_r2 = st.columns([1, 3])
+                with col_r1:
+                    st.metric("Our Probability",    f"{(b.get('agent_prob',0) or 0)*100:.0f}%")
+                    st.metric("Market Probability", f"{(b.get('market_prob',0) or 0)*100:.0f}%")
+                    st.metric("Stake",              f"£{b.get('stake_gbp',0):.2f}")
+                    st.metric("Kelly Edge",         f"{edge_pct:.1f}%")
+                with col_r2:
+                    st.markdown(f"**Reasoning:** {reasoning}")
+    else:
+        st.info("No open bets. Scanner places bets when it detects positive-edge opportunities (Kelly edge > 3%).")
+
+    st.markdown("---")
+
+    # ── ROW 4: Calibration (prob estimate vs actual) ──────────────────────────
+    if settled:
+        st.markdown("## Probability Calibration")
+        st.caption("How well our probability estimates track actual outcomes. Should sit on the diagonal.")
+
+        # Bucket agent probs into deciles and compare actual win rate
+        buckets = {}
+        for b in settled:
+            ap = b.get("agent_prob", 0) or 0
+            bucket = round(ap * 10) / 10  # round to nearest 0.1
+            if bucket not in buckets:
+                buckets[bucket] = {"count": 0, "wins": 0}
+            buckets[bucket]["count"] += 1
+            if b.get("result") == "WIN":
+                buckets[bucket]["wins"] += 1
+
+        if buckets:
+            xs, ys, sizes = [], [], []
+            for prob, data in sorted(buckets.items()):
+                if data["count"] > 0:
+                    xs.append(prob)
+                    ys.append(data["wins"] / data["count"])
+                    sizes.append(data["count"] * 15)
+
+            fig_cal = go.Figure()
+            fig_cal.add_trace(go.Scatter(
+                x=[0, 1], y=[0, 1],
+                mode="lines", name="Perfect calibration",
+                line=dict(dash="dash", color="#555555"),
+            ))
+            fig_cal.add_trace(go.Scatter(
+                x=xs, y=ys, mode="markers+lines",
+                name="Agent calibration",
+                marker=dict(size=sizes, color="#00d26a"),
+                line=dict(color="#00d26a"),
+            ))
+            fig_cal.update_layout(
+                height=300,
+                margin=dict(l=10, r=10, t=20, b=10),
+                paper_bgcolor="#0e0e1a", plot_bgcolor="#0e0e1a",
+                font_color="white",
+                xaxis_title="Predicted Probability",
+                yaxis_title="Actual Win Rate",
+                xaxis=dict(range=[0, 1], gridcolor="#1a1a2e"),
+                yaxis=dict(range=[0, 1], gridcolor="#1a1a2e"),
+            )
+            st.plotly_chart(fig_cal, use_container_width=True)
+
+        st.markdown("---")
+
+    # ── ROW 5: Settled Bet History ────────────────────────────────────────────
+    st.markdown("## Settled History")
+    if settled:
+        import pandas as pd
+        rows = []
+        for b in reversed(settled[-50:]):
+            result  = b.get("result", "")
+            profit  = b.get("profit", 0) or 0
+            rows.append({
+                "Date":      (b.get("timestamp", "")[:10]),
+                "Event":     b.get("event", ""),
+                "Selection": b.get("selection", ""),
+                "Odds":      f"{b.get('back_price',0):.2f}",
+                "Stake":     f"£{b.get('stake_gbp',0):.2f}",
+                "Result":    result,
+                "P&L":       f"£{profit:+.2f}",
+                "Our Prob":  f"{(b.get('agent_prob',0) or 0)*100:.0f}%",
+                "Edge":      f"{(b.get('edge',0) or 0)*100:.1f}%",
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        # P&L chart
+        cumulative, running = [], 0
+        for b in settled:
+            running += b.get("profit", 0) or 0
+            cumulative.append(running)
+
+        fig_pnl = go.Figure()
+        fig_pnl.add_trace(go.Scatter(
+            y=cumulative, mode="lines+markers",
+            line=dict(color="#00d26a" if running >= 0 else "#ff4b4b", width=2),
+            marker=dict(size=5),
+            name="Cumulative P&L (£)",
+            fill="tozeroy",
+            fillcolor="rgba(0,210,106,0.1)" if running >= 0 else "rgba(255,75,75,0.1)",
+        ))
+        fig_pnl.add_hline(y=0, line_dash="dash", line_color="#555555")
+        fig_pnl.update_layout(
+            height=220, margin=dict(l=10, r=10, t=20, b=10),
+            paper_bgcolor="#0e0e1a", plot_bgcolor="#0e0e1a",
+            font_color="white", yaxis_title="Cumulative P&L (£)",
+            xaxis_title="Bet Number", xaxis=dict(gridcolor="#1a1a2e"),
+            yaxis=dict(gridcolor="#1a1a2e"),
+        )
+        st.plotly_chart(fig_pnl, use_container_width=True)
+    else:
+        st.info("No settled bets yet. Open bets settle automatically when events complete.")
+
+    st.markdown("---")
+
+    # ── ROW 6: System Health ──────────────────────────────────────────────────
+    st.markdown("## System Health")
+    h1, h2, h3, h4 = st.columns(4)
+
+    ledger_age = "⚫ No data"
+    if BETFAIR_LEDGER.exists():
+        age_h = (time.time() - BETFAIR_LEDGER.stat().st_mtime) / 3600
+        ledger_age = f"✅ {int(age_h*60)}m ago" if age_h < 1 else f"🟡 {int(age_h)}h ago" if age_h < 24 else f"🔴 {int(age_h/24)}d ago"
+
+    bf_log = Path("/tmp/betfair_paper.log")
+    log_age = "⚫ Not yet run"
+    if bf_log.exists():
+        age_h = (time.time() - bf_log.stat().st_mtime) / 3600
+        log_age = f"✅ {int(age_h*60)}m ago" if age_h < 2 else f"🟡 {int(age_h)}h ago"
+
+    with h1:
+        st.markdown(f"**Ledger**<br>{ledger_age}", unsafe_allow_html=True)
+    with h2:
+        st.markdown(f"**Last Scan**<br>{log_age}", unsafe_allow_html=True)
+    with h3:
+        paper_on = True  # always paper mode for now
+        st.markdown(f"**Mode**<br>{'✅ Paper (safe)' if paper_on else '🔴 LIVE'}", unsafe_allow_html=True)
+    with h4:
+        started = ledger.get("started", "")[:10] if ledger.get("started") else "—"
+        st.markdown(f"**Trial Start**<br>{started}", unsafe_allow_html=True)
+
+    if bf_log.exists():
+        with st.expander("View scanner log"):
+            st.code(bf_log.read_text()[-2000:], language="text")
+
+    st.markdown("<p style='color:#333;font-size:11px;text-align:center;margin-top:1rem'>Larsen Ventures · Betfair Prediction Engine · Paper Mode · Built by Chappie</p>", unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 3 — TICKER DISPLAY  (office wall view)
+# ════════════════════════════════════════════════════════════════════════════════
+with tab3:
     cfg     = load_ticker_config()
     tickers = cfg.get("tickers", [])
     name    = cfg.get("display_name", "Larsen Ventures")
