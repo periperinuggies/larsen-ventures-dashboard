@@ -50,8 +50,9 @@ def load_json(path, fallback=None):
             pass
     return fallback or {}
 
-kb          = load_json("kb_summary.json")
-ticker_cfg  = load_json("ticker_config.json")
+kb           = load_json("kb_summary.json")
+ticker_cfg   = load_json("ticker_config.json")
+betfair_data = load_json("betfair_ledger.json")
 TICKERS_DISPLAY = ticker_cfg.get("tickers", [])
 DISPLAY_NAME    = ticker_cfg.get("display_name", "Larsen Ventures")
 
@@ -170,7 +171,7 @@ ct, cts = st.columns([5,2])
 with ct:  st.markdown("# 🤖  Larsen Ventures — Trading Intelligence")
 with cts: st.markdown(f"<p style='color:#555;font-size:12px;margin-top:22px'>Auto-refresh 60s · {datetime.now().strftime('%d %b %Y %H:%M')} AWST</p>", unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["Trading Intelligence", "📺  Ticker Display"])
+tab1, tab2, tab3 = st.tabs(["🤖  Trading Intelligence", "🎯  Prediction Markets", "📺  Ticker Display"])
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — TRADING INTELLIGENCE
@@ -350,9 +351,181 @@ with tab1:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — TICKER DISPLAY (office wall)
+# TAB 2 — PREDICTION MARKETS (Betfair Engine)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
+    st.markdown("---")
+    bets      = betfair_data.get("bets", [])
+    stats_bf  = betfair_data.get("stats", {})
+    open_bets = [b for b in bets if b.get("status") == "OPEN"]
+    settled   = [b for b in bets if b.get("status") == "SETTLED"]
+    wins      = [b for b in settled if b.get("result") == "WIN"]
+    bankroll  = float(betfair_data.get("bankroll_gbp", 250.0))
+    start_br  = 250.0
+    total_pnl = bankroll - start_br
+    staked    = float(stats_bf.get("total_staked", 0) or 0)
+    roi_pct   = (total_pnl / staked * 100) if staked > 0 else 0
+    win_rate  = (len(wins) / len(settled) * 100) if settled else 0
+    avg_edge  = (sum((b.get("edge") or 0) for b in bets) / len(bets) * 100) if bets else 0
+    avg_odds  = (sum((b.get("back_price") or 0) for b in bets) / len(bets)) if bets else 0
+    synced    = betfair_data.get("_synced", betfair_data.get("started", ""))[:16]
+
+    st.markdown(f"<p style='color:#555;font-size:12px'>Betfair Exchange · Paper Mode · Last synced: {synced}</p>", unsafe_allow_html=True)
+
+    # ── P&L Summary ────────────────────────────────────────────────────────
+    st.markdown("## Bankroll & P&L")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    b1.metric("Bankroll",   f"£{bankroll:,.2f}", delta=f"£{total_pnl:+.2f}" if bets else None)
+    b2.metric("Starting",   f"£{start_br:,.2f}")
+    b3.metric("Total P&L",  f"£{total_pnl:+.2f}")
+    b4.metric("ROI",        f"{roi_pct:.1f}%" if bets else "—")
+    b5.metric("Paper Mode", "✅ Active")
+
+    if not bets:
+        st.info("Prediction engine is live — no bets placed yet. The scanner finds opportunities and records them here automatically. Data syncs every 30 minutes.")
+
+    st.markdown("---")
+
+    # ── Performance ────────────────────────────────────────────────────────
+    st.markdown("## Performance")
+    p1, p2, p3, p4, p5, p6 = st.columns(6)
+    p1.metric("Total Bets",  str(stats_bf.get("total_bets", 0)))
+    p2.metric("Open",        str(len(open_bets)))
+    p3.metric("Settled",     str(len(settled)))
+    p4.metric("Win Rate",    f"{win_rate:.0f}%" if settled else "—")
+    p5.metric("Avg Edge",    f"{avg_edge:.1f}%" if bets else "—")
+    p6.metric("Avg Odds",    f"{avg_odds:.2f}" if bets else "—")
+
+    if settled:
+        st.markdown("**Go / No-Go Criteria**")
+        g1, g2, g3 = st.columns(3)
+        with g1:
+            st.markdown(f"{'✅' if roi_pct > 0 else '🔴'} **Positive ROI after 5% commission**  \n`{roi_pct:.1f}%` (target: > 0%)")
+        with g2:
+            st.markdown(f"{'✅' if win_rate >= 52 else '🔴'} **Win Rate**  \n`{win_rate:.1f}%` (target: ≥ 52%)")
+        with g3:
+            st.markdown(f"{'✅' if len(settled) >= 20 else '⏳'} **Sample Size**  \n`{len(settled)} settled` (target: ≥ 20)")
+
+    st.markdown("---")
+
+    # ── Open Bets ──────────────────────────────────────────────────────────
+    st.markdown(f"## Open Bets  `{len(open_bets)}`")
+    if open_bets:
+        import pandas as pd
+        rows = []
+        for b in open_bets:
+            edge_pct = (b.get("edge") or 0) * 100
+            rows.append({
+                "Event":     b.get("event", ""),
+                "Market":    b.get("market", ""),
+                "Selection": b.get("selection", ""),
+                "Odds":      f"{b.get('back_price', 0):.2f}",
+                "Stake":     f"£{b.get('stake_gbp', 0):.2f}",
+                "To Win":    f"£{b.get('potential_profit', 0):.2f}",
+                "Our Prob":  f"{(b.get('agent_prob') or 0)*100:.0f}%",
+                "Mkt Prob":  f"{(b.get('market_prob') or 0)*100:.0f}%",
+                "Edge":      f"{edge_pct:+.1f}%",
+                "Type":      b.get("event_type", ""),
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        st.markdown("**Signal Reasoning**")
+        for b in open_bets:
+            edge_pct = (b.get("edge") or 0) * 100
+            with st.expander(f"{b.get('event','')} — {b.get('selection','')} @ {b.get('back_price','')} | edge {edge_pct:.1f}%"):
+                c1, c2 = st.columns([1, 3])
+                with c1:
+                    st.metric("Our Prob",   f"{(b.get('agent_prob') or 0)*100:.0f}%")
+                    st.metric("Mkt Prob",   f"{(b.get('market_prob') or 0)*100:.0f}%")
+                    st.metric("Stake",      f"£{b.get('stake_gbp', 0):.2f}")
+                    st.metric("Kelly Edge", f"{edge_pct:.1f}%")
+                with c2:
+                    st.markdown(f"**Reasoning:** {b.get('reasoning', 'No reasoning captured')}")
+    else:
+        st.info("No open bets. Scanner places bets when Kelly edge > 3%.")
+
+    st.markdown("---")
+
+    # ── Calibration ────────────────────────────────────────────────────────
+    if settled:
+        st.markdown("## Probability Calibration")
+        buckets = {}
+        for b in settled:
+            ap = (b.get("agent_prob") or 0)
+            bucket = round(ap * 10) / 10
+            if bucket not in buckets:
+                buckets[bucket] = {"count": 0, "wins": 0}
+            buckets[bucket]["count"] += 1
+            if b.get("result") == "WIN":
+                buckets[bucket]["wins"] += 1
+
+        xs, ys, sizes = [], [], []
+        for prob, data in sorted(buckets.items()):
+            if data["count"] > 0:
+                xs.append(prob)
+                ys.append(data["wins"] / data["count"])
+                sizes.append(data["count"] * 15)
+
+        fig_cal = go.Figure()
+        fig_cal.add_trace(go.Scatter(x=[0,1], y=[0,1], mode="lines", name="Perfect calibration",
+                                     line=dict(dash="dash", color="#555")))
+        fig_cal.add_trace(go.Scatter(x=xs, y=ys, mode="markers+lines", name="Agent calibration",
+                                     marker=dict(size=sizes, color="#00d26a"), line=dict(color="#00d26a")))
+        fig_cal.update_layout(height=280, margin=dict(l=10,r=10,t=20,b=10),
+                              paper_bgcolor="#0e0e1a", plot_bgcolor="#0e0e1a", font_color="white",
+                              xaxis=dict(range=[0,1], title="Predicted Prob", gridcolor="#1a1a2e"),
+                              yaxis=dict(range=[0,1], title="Actual Win Rate", gridcolor="#1a1a2e"))
+        st.plotly_chart(fig_cal, use_container_width=True)
+        st.markdown("---")
+
+    # ── Settled History + P&L chart ────────────────────────────────────────
+    st.markdown("## Settled History")
+    if settled:
+        import pandas as pd
+        rows = []
+        for b in reversed(settled[-50:]):
+            rows.append({
+                "Date":      (b.get("timestamp","")[:10]),
+                "Event":     b.get("event",""),
+                "Selection": b.get("selection",""),
+                "Odds":      f"{b.get('back_price',0):.2f}",
+                "Stake":     f"£{b.get('stake_gbp',0):.2f}",
+                "Result":    b.get("result",""),
+                "P&L":       f"£{(b.get('profit') or 0):+.2f}",
+                "Our Prob":  f"{(b.get('agent_prob') or 0)*100:.0f}%",
+                "Edge":      f"{(b.get('edge') or 0)*100:.1f}%",
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        cumulative, running = [], 0
+        for b in settled:
+            running += (b.get("profit") or 0)
+            cumulative.append(running)
+
+        fig_pnl = go.Figure()
+        fig_pnl.add_trace(go.Scatter(
+            y=cumulative, mode="lines+markers", name="Cumulative P&L (£)",
+            line=dict(color="#00d26a" if running >= 0 else "#ff4b4b", width=2),
+            marker=dict(size=5),
+            fill="tozeroy",
+            fillcolor="rgba(0,210,106,0.08)" if running >= 0 else "rgba(255,75,75,0.08)",
+        ))
+        fig_pnl.add_hline(y=0, line_dash="dash", line_color="#555")
+        fig_pnl.update_layout(height=220, margin=dict(l=10,r=10,t=20,b=10),
+                              paper_bgcolor="#0e0e1a", plot_bgcolor="#0e0e1a", font_color="white",
+                              xaxis=dict(title="Bet #", gridcolor="#1a1a2e"),
+                              yaxis=dict(title="Cumulative P&L (£)", gridcolor="#1a1a2e"))
+        st.plotly_chart(fig_pnl, use_container_width=True)
+    else:
+        st.info("No settled bets yet.")
+
+    st.markdown("<p style='color:#333;font-size:11px;text-align:center;margin-top:1rem'>Larsen Ventures · Betfair Prediction Engine · Paper Mode · Built by Chappie 🤖</p>", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — TICKER DISPLAY (office wall)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab3:
     st.markdown(f"""
     <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px'>
       <span style='font-size:22px;font-weight:800;color:#fff;letter-spacing:1px'>{DISPLAY_NAME.upper()}</span>

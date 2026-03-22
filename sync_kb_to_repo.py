@@ -50,3 +50,19 @@ out = Path(__file__).parent / "kb_summary.json"
 with open(out, "w") as f:
     json.dump(summary, f, indent=2, default=str)
 print(f"kb_summary.json written ({out.stat().st_size} bytes)")
+
+# ── Sync Betfair ledger ───────────────────────────────────────────────────────
+betfair_src = Path(__file__).parent.parent / "betfair" / "paper_ledger.json"
+betfair_dst = Path(__file__).parent / "betfair_ledger.json"
+if betfair_src.exists():
+    try:
+        with open(betfair_src) as f:
+            betfair_data = json.load(f)
+        betfair_data["_synced"] = datetime.now().isoformat()
+        with open(betfair_dst, "w") as f:
+            json.dump(betfair_data, f, indent=2, default=str)
+        print(f"betfair_ledger.json synced ({betfair_dst.stat().st_size} bytes)")
+    except Exception as e:
+        print(f"betfair sync error: {e}")
+else:
+    print("betfair/paper_ledger.json not found — skipping sync")
