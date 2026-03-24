@@ -1,8 +1,8 @@
 {
-  "_updated": "2026-03-23T15:30:11.828036",
+  "_updated": "2026-03-24T15:06:04.239856",
   "macro": {
-    "regime": "BEAR / RISK-OFF",
-    "gate": false,
+    "regime": "CAUTION",
+    "gate": true,
     "spy": null,
     "sma200": null,
     "vix": null,
