@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 # ── Config ────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Larsen Ventures — Trading Intelligence",
+    page_title="ARGUS — Trading Intelligence",
     page_icon="◈",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -352,9 +352,9 @@ st.markdown(f"""
             padding:16px 24px;margin-bottom:16px;
             display:flex;align-items:center;justify-content:space-between">
   <div style="display:flex;align-items:center;gap:16px">
-    <span style="color:#58a6ff;font-size:26px;font-weight:700;letter-spacing:1.5px">◈ LARSEN VENTURES</span>
+    <span style="color:#58a6ff;font-size:26px;font-weight:700;letter-spacing:1.5px">◈ ARGUS</span>
     <span style="color:#30363d;font-size:20px">|</span>
-    <span style="color:#8b949e;font-size:14px">Trading Intelligence</span>
+    <span style="color:#8b949e;font-size:14px">Larsen Ventures · Trading Intelligence</span>
   </div>
   <div style="text-align:right">
     <div style="color:#c9d1d9;font-size:13px;font-weight:500">{now_str}</div>
@@ -1225,7 +1225,7 @@ with tab_kb:
 st.markdown(
     f'<div style="color:#6e7681;font-size:10px;text-align:center;margin-top:20px;'
     f'padding-top:8px;border-top:1px solid #30363d">'
-    f'Larsen Ventures Trading Intelligence &nbsp;·&nbsp; '
+    f'ARGUS · Larsen Ventures &nbsp;·&nbsp; '
     f'<a href="https://trading.larsenfamily.com.au" style="color:#58a6ff">trading.larsenfamily.com.au</a>'
     f' &nbsp;·&nbsp; '
     f'<a href="https://alpaca.markets/paper" style="color:#58a6ff">Alpaca Paper</a>'
