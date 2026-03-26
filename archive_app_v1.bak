@@ -382,7 +382,8 @@ with tab1:
             for ticker, info in large.items():
                 amt = info["largest"]["amount"] / 1e6
                 st.markdown(f"<span class='pill pill-bull'>{ticker} ${amt:.0f}M</span>", unsafe_allow_html=True)
-                st.caption(info["largest"]["agency"][:38])
+                agency = (info["largest"].get("agency") or "Unknown agency")[:38]
+                st.caption(agency)
         elif all_c:
             for ticker in list(all_c.keys())[:4]:
                 st.markdown(f"<span class='pill pill-neut'>{ticker} active</span>", unsafe_allow_html=True)
