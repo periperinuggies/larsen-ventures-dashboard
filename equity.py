@@ -110,14 +110,20 @@ except Exception:
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""<style>
-/* Reset & base */
+/* ── Base ──────────────────────────────────────────────────────── */
 .stApp { background: #0d1117; }
 .main .block-container {
     padding: 1.5rem 2rem 2rem 2rem;
     max-width: 100%;
     background: #0d1117;
 }
-/* Metrics */
+
+/* ── Hide the running-man spinner entirely ─────────────────────── */
+div[data-testid="stStatusWidget"] { display: none !important; }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+
+/* ── Metrics ───────────────────────────────────────────────────── */
 div[data-testid="metric-container"] {
     background: #161b22 !important;
     border: 1px solid #30363d !important;
@@ -135,36 +141,54 @@ div[data-testid="metric-container"] div[data-testid="metric-value"] {
     font-size: 20px !important;
     font-weight: 600;
 }
-/* Tabs */
+
+/* ── Tabs — solid button style ─────────────────────────────────── */
 div[data-baseweb="tab-list"] {
-    background: #161b22 !important;
-    border-radius: 8px;
-    padding: 4px;
-    gap: 2px;
-    border: 1px solid #30363d;
-    margin-bottom: 16px;
+    background: #0d1117 !important;
+    border-radius: 0 !important;
+    padding: 0 0 0 0 !important;
+    gap: 6px !important;
+    border: none !important;
+    border-bottom: 2px solid #21262d !important;
+    margin-bottom: 20px !important;
 }
 div[data-baseweb="tab"] {
-    background: transparent !important;
+    background: #161b22 !important;
     color: #8b949e !important;
-    border-radius: 6px !important;
-    padding: 8px 18px !important;
+    border-radius: 6px 6px 0 0 !important;
+    padding: 10px 22px !important;
     font-size: 13px !important;
-    font-weight: 500;
-    border: none !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    border: 1px solid #30363d !important;
+    border-bottom: none !important;
+    margin-bottom: -2px !important;
+    transition: background 0.15s, color 0.15s !important;
+}
+div[data-baseweb="tab"]:hover {
+    background: #21262d !important;
+    color: #c9d1d9 !important;
 }
 div[aria-selected="true"][data-baseweb="tab"] {
     background: #21262d !important;
-    color: #c9d1d9 !important;
+    color: #58a6ff !important;
     border: 1px solid #30363d !important;
+    border-bottom: 2px solid #21262d !important;
+    font-weight: 700 !important;
 }
-/* Expanders */
+/* Tab content panel */
+div[data-baseweb="tab-panel"] {
+    padding-top: 8px !important;
+}
+
+/* ── Expanders ─────────────────────────────────────────────────── */
 details[data-testid="stExpander"] {
     background: #161b22;
     border: 1px solid #30363d;
     border-radius: 8px;
 }
-/* Tables */
+
+/* ── Tables ────────────────────────────────────────────────────── */
 thead tr th {
     background: #21262d !important;
     color: #58a6ff !important;
@@ -174,11 +198,13 @@ thead tr th {
 }
 tbody tr { background: #161b22 !important; }
 tbody tr:hover { background: #1c2128 !important; }
-/* Typography */
+
+/* ── Typography ────────────────────────────────────────────────── */
 h1, h2, h3 { color: #c9d1d9 !important; }
 p, li { color: #c9d1d9; }
 hr { border-color: #30363d; }
-/* Select widgets */
+
+/* ── Select widgets ────────────────────────────────────────────── */
 div[data-baseweb="select"] > div {
     background: #161b22 !important;
     border-color: #30363d !important;
@@ -1209,6 +1235,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Auto-refresh ──────────────────────────────────────────────────────────────
-time.sleep(60)
-st.rerun()
+# ── Auto-refresh (silent — no spinner) ───────────────────────────────────────
+st.markdown(
+    '<meta http-equiv="refresh" content="60">',
+    unsafe_allow_html=True,
+)
